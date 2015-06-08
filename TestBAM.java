@@ -62,11 +62,13 @@ public class TestBAM extends Configured implements Tool {
 
       public MyOutputFormat(){
 	super(SAMFormat.SAM);
+	//do not write the header into the output file
+	setWriteHeader(false);
       }	 
       @Override
       public RecordWriter<NullWritable, SAMRecordWritable> getRecordWriter(TaskAttemptContext ctx) throws IOException {
           final Configuration conf = ctx.getConfiguration();
-          readSAMHeaderFrom(new Path(conf.get(HEADER_FROM_FILE)), conf);
+	  readSAMHeaderFrom(new Path(conf.get(HEADER_FROM_FILE)), conf);
 		  
           return super.getRecordWriter(ctx);
       }
@@ -90,9 +92,9 @@ public class TestBAM extends Configured implements Tool {
       job.setInputFormatClass(AnySAMInputFormat.class);
       job.setOutputFormatClass(TestBAM.MyOutputFormat.class);
 
-      org.apache.hadoop.mapreduce.lib.input.FileInputFormat.setInputPaths(job, new Path(args[0]));
+      org.apache.hadoop.mapreduce.lib.input.FileInputFormat.setInputPaths(job, new Path(args[1]));
 
-      org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.setOutputPath(job, new Path(args[1]));
+      org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.setOutputPath(job, new Path(args[2]));
       job.submit();
 
       if (!job.waitForCompletion(true)) {
@@ -105,8 +107,8 @@ public class TestBAM extends Configured implements Tool {
   
   
   public static void main(String[] args) throws Exception {
-    if (args.length != 2) {
-        System.out.printf("Usage: hadoop jar <name.jar> %s <input.bam> <output_directory>\n", TestBAM.class.getCanonicalName());
+    if (args.length != 3) {
+        System.out.printf("Usage: hadoop jar <name.jar> %s <header> <input.bam> <output_directory>\n", TestBAM.class.getCanonicalName());
         System.exit(0);
     }
 
@@ -131,16 +133,16 @@ final class TestBAMMapper
             throws InterruptedException, IOException{
         	final SAMRecord record = wrec.get();
 		if(record.getInferredInsertSize() > 1000 || record.getInferredInsertSize() < -1000){
-			for(int i = 0; i < record.getCigar().numCigarElements(); i++){
-				if(record.getCigar().getCigarElement(i).getOperator().toString().equals("M")){
-					if(record.getCigar().getCigarElement(i).getLength() >= 80){
-						record.setReadName(fileName.substring(29,33) + fileName.substring(0,8) +record.getReadName());
+			//for(int i = 0; i < record.getCigar().numCigarElements(); i++){
+				//if(record.getCigar().getCigarElement(i).getOperator().toString().equals("M")){
+					//if(record.getCigar().getCigarElement(i).getLength() >= 80){
+						record.setReadName(fileName.substring(29,32) + "\t" + fileName.substring(0,7) + "\t" +record.getReadName());
 						wrec.set(record);
 						ctx.write(new Text(Integer.toString(wrec.get().getInferredInsertSize())), wrec);
-						break;
-					}
-				}
-			}
+						//break;
+					//}
+				//}
+			//}
 		}
     	}
 }
