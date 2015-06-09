@@ -40,6 +40,17 @@ import htsjdk.samtools.SAMRecord;
 import org.seqdoop.hadoop_bam.AnySAMInputFormat;
 import org.seqdoop.hadoop_bam.KeyIgnoringBAMOutputFormat;
 import org.seqdoop.hadoop_bam.SAMRecordWritable;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.Cigar;
+
+import org.seqdoop.hadoop_bam.AnySAMInputFormat;
+import org.seqdoop.hadoop_bam.KeyIgnoringAnySAMOutputFormat;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMFormat;
+
+import org.seqdoop.hadoop_bam.FileVirtualSplit;
+import org.seqdoop.hadoop_bam.BAMOutputFormat;
 
 /**
  * Simple example that reads a BAM (or SAM) file, groups reads by their name and writes the
@@ -50,13 +61,19 @@ import org.seqdoop.hadoop_bam.SAMRecordWritable;
  */
 public class TestBAM extends Configured implements Tool {
 
-  static class MyOutputFormat extends KeyIgnoringBAMOutputFormat<NullWritable> {
+  static class MyOutputFormat extends KeyIgnoringAnySAMOutputFormat<NullWritable> {
       public final static String HEADER_FROM_FILE = "TestBAM.header";
 
+      public MyOutputFormat(){
+	super(SAMFormat.SAM);
+	//do not write the header into the output file
+	setWriteHeader(false);
+      }	 
       @Override
       public RecordWriter<NullWritable, SAMRecordWritable> getRecordWriter(TaskAttemptContext ctx) throws IOException {
           final Configuration conf = ctx.getConfiguration();
-          readSAMHeaderFrom(new Path(conf.get(HEADER_FROM_FILE)), conf);
+	  readSAMHeaderFrom(new Path(conf.get(HEADER_FROM_FILE)), conf);
+		  
           return super.getRecordWriter(ctx);
       }
   }
@@ -64,8 +81,8 @@ public class TestBAM extends Configured implements Tool {
   public int run(String[] args) throws Exception {
       final Configuration conf = getConf();
 
+      
       conf.set(MyOutputFormat.HEADER_FROM_FILE, args[0]);
-
       final Job job = new Job(conf);
 
       job.setJarByClass(TestBAM.class);
@@ -80,9 +97,9 @@ public class TestBAM extends Configured implements Tool {
       job.setInputFormatClass(AnySAMInputFormat.class);
       job.setOutputFormatClass(TestBAM.MyOutputFormat.class);
 
-      org.apache.hadoop.mapreduce.lib.input.FileInputFormat.addInputPath(job, new Path(args[0]));
+      org.apache.hadoop.mapreduce.lib.input.FileInputFormat.setInputPaths(job, new Path(args[1]));
 
-      org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.setOutputPath(job, new Path(args[1]));
+      org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.setOutputPath(job, new Path(args[2]));
       job.submit();
 
       if (!job.waitForCompletion(true)) {
@@ -90,13 +107,14 @@ public class TestBAM extends Configured implements Tool {
           return 1;
       }
 
+	  
     return 0;
   }
   
   
   public static void main(String[] args) throws Exception {
-    if (args.length != 2) {
-        System.out.printf("Usage: hadoop jar <name.jar> %s <input.bam> <output_directory>\n", TestBAM.class.getCanonicalName());
+    if (args.length != 3) {
+        System.out.printf("Usage: hadoop jar <name.jar> %s <header> <input.bam> <output_directory>\n", TestBAM.class.getCanonicalName());
         System.exit(0);
     }
 
@@ -108,19 +126,31 @@ public class TestBAM extends Configured implements Tool {
 final class TestBAMMapper
         extends org.apache.hadoop.mapreduce.Mapper<LongWritable,SAMRecordWritable, Text,SAMRecordWritable>
 {
-    @Override protected void map(
-
-            LongWritable ignored, SAMRecordWritable wrec,
-            org.apache.hadoop.mapreduce.Mapper<LongWritable,SAMRecordWritable, Text,SAMRecordWritable>.Context
-                    ctx)
-            throws InterruptedException, IOException
-    {
-        final SAMRecord record = wrec.get();
-	if (Math.abs(record.getInferredInsertSize()) > 1000) {
-	        System.out.println(record.toString());
-        	ctx.write(new Text(wrec.get().getReadName()), wrec);
+	String fileName = new String();
+	protected void setup(Context context) throws java.io.IOException, java.lang.InterruptedException
+	{
+		fileName = ((FileVirtualSplit) context.getInputSplit()).getPath().getName().toString();
 	}
-    }
+	
+	@Override
+	protected void map(
+        	LongWritable ignored, SAMRecordWritable wrec,
+          	org.apache.hadoop.mapreduce.Mapper<LongWritable,SAMRecordWritable, Text,SAMRecordWritable>.Context ctx)
+            throws InterruptedException, IOException{
+        	final SAMRecord record = wrec.get();
+		if(record.getInferredInsertSize() > 1000 || record.getInferredInsertSize() < -1000){
+			//for(int i = 0; i < record.getCigar().numCigarElements(); i++){
+				//if(record.getCigar().getCigarElement(i).getOperator().toString().equals("M")){
+					//if(record.getCigar().getCigarElement(i).getLength() >= 80){
+						record.setReadName(fileName.substring(29,32) + "\t" + fileName.substring(0,7) + "\t" +record.getReadName());
+						wrec.set(record);
+						ctx.write(new Text(Integer.toString(wrec.get().getInferredInsertSize())), wrec);
+						//break;
+					//}
+				//}
+			//}
+		}
+    	}
 }
 
 final class TestBAMReducer
@@ -136,7 +166,6 @@ final class TestBAMReducer
 
         while (it.hasNext()) {
             SAMRecordWritable a = it.next();
-            System.out.println("writing; " + a.get().toString());
             ctx.write(key, a);
         }
     }
