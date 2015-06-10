@@ -16,7 +16,9 @@ public class WordCount {
         public void map(LongWritable key, Text value, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException {
             String line = value.toString();
             String[] split = line.split("\t");
+            //set population code as key
             word.set(split[0]);
+	    //set length of fragment as value
 	    tlen = Math.abs(Integer.parseInt(split[9]));
             output.collect(word, new IntWritable(tlen));
             
@@ -32,6 +34,7 @@ public class WordCount {
                 sum += values.next().get();
 		count += 1;
             }
+	    //calculate the average of fragment length
 	    avg = sum/count;
             output.collect(key, new IntWritable(avg));
         }
