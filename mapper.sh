@@ -1,4 +1,6 @@
 #!/bin/bash
+#bash script; use samtools to view BAM file and awk to filter records; output is txt file for each BAM file
+#user can specify input files path and number of threads to process BAM files
 
 echo "Type base path of the bam files, do not add / in the end"
 read input
