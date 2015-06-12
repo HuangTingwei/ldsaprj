@@ -1,0 +1,24 @@
+This user guide intends to explain the function of each file in the code repository. Please refer to each file if you want to know how to run/use the file.
+
+GenomePrj.ipynb
+
+TestBAM.java
+The program used as our final soltion to the 1000Genomes problem. It is based on Hadoop-BAM.
+
+WordCount.java
+
+WordCountAvg.java
+
+header
+Header file for TestBAM.java to use as index for all BAM files. It should be putin HDFS and its path should be provided when running TestBAM.
+
+mapper.py
+A python program to read BAM files and filter out reads of which the fragment length is over 1000. It is not based on any big data processing platform. It is simply a raw python program using pysam module. We compared its performance with TestBAM in the project report.
+
+mapper.sh
+A bash script to read BAM files and filter out reads of which the fragment le
+ngth is over 1000. It is not based on any big data processing platform. It is si
+mply a raw bash script which invokes samtools and allows multi-thread processing. We compared its performance with TestBAM in the project report.
+
+pom.xml
+A configuration file used in the process of compiling TestBAM.java. The one provided by Hadoop-BAM's official example has some small errors and we changed it a bit to make it work. Where it should be put is described in TestBAM.java.
