@@ -1,22 +1,4 @@
-// Copyright (c) 2014 Aalto University
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to
-// deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+//adapted from Hadoop-BAM's official example and Anastasios Glaros's group's TestBAM.java (link: https://github.com/glrs/LDSA-1000Genome/blob/master/TestBAM.java)
 
 package org.seqdoop.hadoop_bam.examples;
 
@@ -53,14 +35,19 @@ import org.seqdoop.hadoop_bam.FileVirtualSplit;
 import org.seqdoop.hadoop_bam.BAMOutputFormat;
 
 /**
- * Simple example that reads a BAM (or SAM) file, groups reads by their name and writes the
- * output again as BAM file. Note that both the file and its index must be present.
+ * This program reads a BAM (or SAM) file, filters reads of which the fragment length is larger than 1000, adds individual ID to each read, and writes the output as SAM file.
  *
- * Usage: hadoop jar target/*-jar-with-dependencies.jar org.seqdoop.hadoop_bam.examples.TestBAM \
- *     <input.bam> <output_directory>
+ * Note that both the input file(s) and the header must be present in HDFS. And replace pom.xml in Hadoop-BAM-7.0.0/examples/ to pom.xml in the code repository 
+ *
+ * How to compile the program:
+ * Put this program in folder Hadoop-BAM-7.0.0/examples/src/main/java/org/seqdoop/hadoop_bam/examples/, and run commond 'sudo mvn clean package' in the folder Hadoop-BAM-7.0.0/examples/
+ *
+ * How to run the program:
+ * In the folder Hadoop-BAM-7.0.0/examples/, run the command: hadoop jar target/*-jar-with-dependencies.jar org.seqdoop.hadoop_bam.examples.TestBAM <header> <input.bam> <output_directory>
  */
 public class TestBAM extends Configured implements Tool {
-
+  
+  //customize the outputFormat as SAM file without header
   static class MyOutputFormat extends KeyIgnoringAnySAMOutputFormat<NullWritable> {
       public final static String HEADER_FROM_FILE = "TestBAM.header";
 
@@ -78,6 +65,7 @@ public class TestBAM extends Configured implements Tool {
       }
   }
 
+  //create a job, configure it and submit it. Finally wait for it to complete.
   public int run(String[] args) throws Exception {
       final Configuration conf = getConf();
 
@@ -123,6 +111,7 @@ public class TestBAM extends Configured implements Tool {
   }
 }
 
+//Mapper
 final class TestBAMMapper
         extends org.apache.hadoop.mapreduce.Mapper<LongWritable,SAMRecordWritable, Text,SAMRecordWritable>
 {
@@ -132,6 +121,7 @@ final class TestBAMMapper
 		fileName = ((FileVirtualSplit) context.getInputSplit()).getPath().getName().toString();
 	}
 	
+	//read a single line of BAM record, check if its fragment length is over 1000. If yes, it add the individual ID to the record and write it to the context
 	@Override
 	protected void map(
         	LongWritable ignored, SAMRecordWritable wrec,
@@ -139,23 +129,18 @@ final class TestBAMMapper
             throws InterruptedException, IOException{
         	final SAMRecord record = wrec.get();
 		if(record.getInferredInsertSize() > 1000 || record.getInferredInsertSize() < -1000){
-			//for(int i = 0; i < record.getCigar().numCigarElements(); i++){
-				//if(record.getCigar().getCigarElement(i).getOperator().toString().equals("M")){
-					//if(record.getCigar().getCigarElement(i).getLength() >= 80){
-						record.setReadName(fileName.substring(29,32) + "\t" + fileName.substring(0,7) + "\t" +record.getReadName());
-						wrec.set(record);
-						ctx.write(new Text(Integer.toString(wrec.get().getInferredInsertSize())), wrec);
-						//break;
-					//}
-				//}
-			//}
+			record.setReadName(fileName.substring(29,32) + "\t" + fileName.substring(0,7) + "\t" +record.getReadName());
+			wrec.set(record);
+			ctx.write(new Text(Integer.toString(wrec.get().getInferredInsertSize())), wrec);
 		}
     	}
 }
 
+//Reducer
 final class TestBAMReducer
         extends org.apache.hadoop.mapreduce.Reducer<Text,SAMRecordWritable, Text,SAMRecordWritable> {
 
+    //write the record to the output file
     @Override
     protected void reduce(
             Text key, Iterable<SAMRecordWritable> records,
