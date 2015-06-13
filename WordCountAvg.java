@@ -12,19 +12,18 @@ public class WordCount {
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
 	private int tlen = 0;
-	    
+	//Mapper output population code as key, length of fragment as value	    
         public void map(LongWritable key, Text value, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException {
             String line = value.toString();
             String[] split = line.split("\t");
-            //set population code as key
             word.set(split[0]);
-	    //set length of fragment as value
 	    tlen = Math.abs(Integer.parseInt(split[9]));
             output.collect(word, new IntWritable(tlen));
             
         }
     }
 	
+	//reduce population code on average of fragment length
     public static class Reduce extends MapReduceBase implements Reducer<Text, IntWritable, Text, IntWritable> {
         public void reduce(Text key, Iterator<IntWritable> values, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException {
             int sum = 0;
@@ -34,7 +33,6 @@ public class WordCount {
                 sum += values.next().get();
 		count += 1;
             }
-	    //calculate the average of fragment length
 	    avg = sum/count;
             output.collect(key, new IntWritable(avg));
         }

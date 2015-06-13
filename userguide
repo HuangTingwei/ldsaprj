@@ -6,8 +6,10 @@ TestBAM.java
 The program used as our final soltion to the 1000Genomes problem. It is based on Hadoop-BAM.
 
 WordCount.java
+This program is applied to count the structural variation alignments grouped by Population Code.
 
 WordCountAvg.java
+This program calculates the average length of fragment of structural variation alignments grouped by Population Code.
 
 header
 Header file for TestBAM.java to use as index for all BAM files. It should be putin HDFS and its path should be provided when running TestBAM.
