@@ -1,6 +1,7 @@
 This user guide intends to explain the function of each file in the code repository. Please refer to each file if you want to know how to run/use the file.
 
 GenomePrj.ipynb
+This script read bam file, then put identicalID and all other column into sparkContext.
 
 TestBAM.java
 The program used as our final soltion to the 1000Genomes problem. It is based on Hadoop-BAM.
